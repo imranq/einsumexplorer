@@ -1,0 +1,282 @@
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f8fafc;
+}
+
+.monospace {
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.matrix-display {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.375rem;
+    background-color: #f9fafb;
+    margin: 0.25rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    color: #374151;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.matrix-display:hover {
+    background-color: #f3f4f6;
+    transform: scale(1.05);
+}
+
+.tensor-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+.tensor-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.feedback-message {
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 0.5rem;
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+.correct-answer {
+    background-color: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+.wrong-answer {
+    background-color: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+.game-explanation {
+    background-color: #eff6ff;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.progress-bar {
+    height: 0.5rem;
+    background-color: #e5e7eb;
+    border-radius: 9999px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: #3b82f6;
+    transition: width 0.3s ease;
+}
+
+.hint-text {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.hint-text.show {
+    max-height: 500px;
+}
+
+.cheatsheet-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.5s ease;
+}
+
+.cheatsheet-content.show {
+    max-height: 2000px;
+}
+
+.btn {
+    transition: all 0.2s ease;
+    transform: translateY(0);
+}
+
+.btn:active {
+    transform: translateY(2px);
+}
+
+.btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.difficulty-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.difficulty-easy {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.difficulty-medium {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.difficulty-hard {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    }
+}
+
+.pulse {
+    animation: pulse 2s infinite;
+}
+
+/* Dark mode toggle */
+.dark-mode {
+    background-color: #1e293b;
+    color: #f1f5f9;
+}
+
+.dark-mode .matrix-display {
+    background-color: #334155;
+    border-color: #475569;
+    color: #f1f5f9;
+}
+
+.dark-mode .matrix-display:hover {
+    background-color: #475569;
+}
+
+.dark-mode .game-container {
+    background-color: #0f172a;
+}
+
+.dark-mode .progress-bar {
+    background-color: #334155;
+}
+
+.dark-mode .game-explanation {
+    background-color: #1e3a8a;
+    color: #bfdbfe;
+    border-color: #3b82f6;
+}
+
+/* Responsive design */
+@media (max-width: 640px) {
+    .game-container {
+        padding: 1rem;
+    }
+
+    .matrix-display {
+        min-width: 2rem;
+        min-height: 2rem;
+        padding: 0.25rem;
+        font-size: 0.75rem;
+    }
+}
+
+/* Tutorial styles */
+.hint-primary {
+    font-weight: 500;
+    color: #d97706;
+}
+
+.hint-secondary {
+    color: #78350f;
+    font-size: 0.9rem;
+}
+
+.hint-example {
+    background-color: #fffbeb;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    color: #92400e;
+}
+
+.dark-mode .hint-example {
+    background-color: #78350f;
+    color: #fef3c7;
+}
+
+.dark-mode .hint-primary {
+    color: #fbbf24;
+}
+
+.dark-mode .hint-secondary {
+    color: #fde68a;
+}
+
+.matrix-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    background-color: rgba(255, 255, 255, 0.5);
+}
+
+.dark-mode .matrix-container {
+    border-color: #4b5563;
+    background-color: rgba(31, 41, 55, 0.5);
+}
+
+.tensor-3d-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+}
+
+@media (max-width: 640px) {
+    .tensor-3d-container {
+        grid-template-columns: 1fr;
+    }
+}
