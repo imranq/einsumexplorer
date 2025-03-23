@@ -14,6 +14,7 @@ class EinsumGame {
         this.gameContent = document.getElementById('game-content');
         this.feedback = document.getElementById('feedback');
         this.nextQuestionButton = document.getElementById('next-question');
+        this.prevQuestionButton = document.getElementById('prev-question');
         this.hintButton = document.getElementById('hint-button');
         this.hintText = document.getElementById('hint-text');
         this.questionCounter = document.getElementById('question-counter');
@@ -23,7 +24,6 @@ class EinsumGame {
         this.cheatsheet = document.getElementById('cheatsheet');
         this.standardModeBtn = document.getElementById('standard-mode');
         this.codeModeBtn = document.getElementById('code-mode');
-        this.randomizeButton = document.getElementById('randomize-button');
 
         // Game State
         this.currentQuestionIndex = 0;
@@ -32,7 +32,7 @@ class EinsumGame {
         this.hintShown = false;
         this.darkMode = true;
         this.gameMode = 'standard'; // 'standard', 'code', or 'random'
-        this.currentQuestions = [...questions]; // Default to standard questions
+        this.currentQuestions = [...questions].sort(() => Math.random() - 0.5); // Default to randomized standard questions
 
         // Initialize
         this.init();
@@ -49,13 +49,13 @@ class EinsumGame {
 
         // Event listeners
         this.nextQuestionButton.addEventListener('click', () => this.nextQuestion());
+        this.prevQuestionButton.addEventListener('click', () => this.prevQuestion());
         this.hintButton.addEventListener('click', () => this.toggleHint());
         // this.cheatsheetToggle.addEventListener('click', () => this.toggleCheatsheet());
         
         // Game mode selection
         this.standardModeBtn.addEventListener('click', () => this.setGameMode('standard'));
         this.codeModeBtn.addEventListener('click', () => this.setGameMode('code'));
-        this.randomizeButton.addEventListener('click', () => this.randomizeQuestions());
 
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
@@ -64,8 +64,11 @@ class EinsumGame {
                 if (checkAnswerButton && !checkAnswerButton.disabled) {
                     checkAnswerButton.click();
                 }
-            } else if (e.key === 'ArrowRight' && !this.nextQuestionButton.disabled) {
-                this.nextQuestionButton.click();
+            // } else if (e.key === 'ArrowRight' && !this.nextQuestionButton.disabled) {
+            //     this.nextQuestionButton.click();
+            // } else if (e.key === 'ArrowLeft' && !this.prevQuestionButton.disabled) {
+            //     this.prevQuestionButton.click();
+            // } 
             } else if (e.key === 'h' && e.ctrlKey) {
                 e.preventDefault();
                 this.hintButton.click();
@@ -86,10 +89,10 @@ class EinsumGame {
         // Set active button based on mode
         if (mode === 'standard') {
             this.standardModeBtn.classList.add('active');
-            this.currentQuestions = [...questions];
+            this.currentQuestions = [...questions].sort(() => Math.random() - 0.5);
         } else if (mode === 'code') {
             this.codeModeBtn.classList.add('active');
-            this.currentQuestions = [...codeQuestions];
+            this.currentQuestions = [...codeQuestions].sort(() => Math.random() - 0.5);
         }
         
         // Update display
@@ -113,6 +116,17 @@ class EinsumGame {
         // Reset hint
         this.hintText.classList.remove('show');
         this.hintText.textContent = question.hint;
+        
+        // Manage previous button state
+        if (this.currentQuestionIndex === 0) {
+            this.prevQuestionButton.disabled = true;
+            this.prevQuestionButton.classList.add('opacity-50', 'cursor-not-allowed');
+            this.prevQuestionButton.classList.remove('hover:bg-blue-700');
+        } else {
+            this.prevQuestionButton.disabled = false;
+            this.prevQuestionButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            this.prevQuestionButton.classList.add('hover:bg-blue-700');
+        }
 
         // Generate HTML for input tensors - only show in standard mode
         let inputTensorHTML = '';
@@ -208,10 +222,13 @@ class EinsumGame {
             }
         });
 
-        // Disable the next question button until the answer is checked
-        this.nextQuestionButton.disabled = true;
-        this.nextQuestionButton.classList.add('opacity-50', 'cursor-not-allowed');
-        this.nextQuestionButton.classList.remove('hover:bg-green-700');
+        // Enable the next question button (allow navigation without answering)
+        this.nextQuestionButton.disabled = false;
+        this.nextQuestionButton.classList.remove('opacity-50', 'cursor-not-allowed');
+        this.nextQuestionButton.classList.add('hover:bg-green-700');
+        
+        // Focus on the input field when a new question is loaded
+        einsumInput.focus();
     }
 
     async checkAnswer() {
@@ -253,10 +270,17 @@ class EinsumGame {
                 <p class="text-sm mt-1">Please check the format (e.g., 'ij,jk->ik'). ${error.message}</p>
             </div>`;
 
-            // Enable the next question button
+            // Enable the navigation buttons
             this.nextQuestionButton.disabled = false;
             this.nextQuestionButton.classList.remove('opacity-50', 'cursor-not-allowed');
             this.nextQuestionButton.classList.add('hover:bg-green-700');
+            
+            // Enable the previous button if not on the first question
+            if (this.currentQuestionIndex > 0) {
+                this.prevQuestionButton.disabled = false;
+                this.prevQuestionButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                this.prevQuestionButton.classList.add('hover:bg-blue-700');
+            }
             return;
         }
 
@@ -393,13 +417,23 @@ class EinsumGame {
         // Update the feedback
         this.feedback.innerHTML = feedbackHTML;
 
-        // Enable the next question button
+        // Enable the navigation buttons
         this.nextQuestionButton.disabled = false;
         this.nextQuestionButton.classList.remove('opacity-50', 'cursor-not-allowed');
         this.nextQuestionButton.classList.add('hover:bg-green-700');
+        
+        // Enable the previous button if not on the first question
+        if (this.currentQuestionIndex > 0) {
+            this.prevQuestionButton.disabled = false;
+            this.prevQuestionButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            this.prevQuestionButton.classList.add('hover:bg-blue-700');
+        }
 
         // Scroll to the feedback
         this.feedback.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        
+        // Focus on the next question button after checking the answer
+        this.nextQuestionButton.focus();
     }
 
     formatCodeWithSyntaxHighlighting(code) {
@@ -423,6 +457,18 @@ class EinsumGame {
         } else {
             // Game over
             this.showGameOver();
+        }
+    }
+    
+    prevQuestion() {
+        if (this.currentQuestionIndex > 0) {
+            this.currentQuestionIndex--;
+            
+            // Display the previous question
+            this.displayQuestion();
+            
+            // Scroll to the top of the game content
+            this.gameContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
     }
 
@@ -466,8 +512,9 @@ class EinsumGame {
         this.gameContent.innerHTML = gameOverHTML;
         this.feedback.innerHTML = '';
 
-        // Hide the next question button and hint button
+        // Hide the navigation buttons and hint button
         this.nextQuestionButton.style.display = 'none';
+        this.prevQuestionButton.style.display = 'none';
         this.hintButton.style.display = 'none';
 
         // Add event listeners to the buttons
@@ -479,8 +526,9 @@ class EinsumGame {
             // Scroll to the game mode selection section
             document.querySelector('.game-mode-btn').scrollIntoView({ behavior: 'smooth', block: 'start' });
             
-            // Show the next question button and hint button again
+            // Show the navigation buttons and hint button again
             this.nextQuestionButton.style.display = 'flex';
+            this.prevQuestionButton.style.display = 'flex';
             this.hintButton.style.display = 'flex';
         });
     }
@@ -489,9 +537,17 @@ class EinsumGame {
         // Reset game state
         this.currentQuestionIndex = 0;
         this.score = 0;
+        
+        // Randomize questions again
+        if (this.gameMode === 'standard') {
+            this.currentQuestions = [...questions].sort(() => Math.random() - 0.5);
+        } else if (this.gameMode === 'code') {
+            this.currentQuestions = [...codeQuestions].sort(() => Math.random() - 0.5);
+        }
 
-        // Show the next question button and hint button
+        // Show the navigation buttons and hint button
         this.nextQuestionButton.style.display = 'flex';
+        this.prevQuestionButton.style.display = 'flex';
         this.hintButton.style.display = 'flex';
 
         // Update the score display
