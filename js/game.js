@@ -1,5 +1,4 @@
-import questions from './questions.js';
-import codeQuestions from './code-questions.js';
+import { questions, codeQuestions, transformerQuestions } from './questions/index.js';
 import { 
     formatTensorData, 
     compareTensorData, 
@@ -22,18 +21,58 @@ class EinsumGame {
         this.progressFill = document.getElementById('progress-fill');
         this.difficultyBadge = document.getElementById('difficulty-badge');
         this.cheatsheet = document.getElementById('cheatsheet');
-        this.standardModeBtn = document.getElementById('standard-mode');
-        this.codeModeBtn = document.getElementById('code-mode');
+        
+        // Get mode and difficulty buttons
+        this.adaptiveBtn = document.getElementById('adaptive-mode');
+        this.transformerBtn = document.getElementById('transformer-mode');
+        this.easyBtn = document.getElementById('easy-mode');
+        this.mediumBtn = document.getElementById('medium-mode');
+        this.hardBtn = document.getElementById('hard-mode');
+        this.standardProblemsBtn = document.getElementById('standard-problems');
+        this.codeProblemsBtn = document.getElementById('code-problems');
+        this.bothProblemsBtn = document.getElementById('both-problems');
+        this.resetLevelBtn = document.getElementById('reset-level');
 
         // Game State
-        this.currentQuestionIndex = 0;
-        this.score = 0;
         this.currentQuestion = null;
         this.hintShown = false;
         this.darkMode = true;
-        this.gameMode = 'standard'; // 'standard', 'code', or 'random'
-        this.currentQuestions = [...questions].sort(() => Math.random() - 0.5); // Default to randomized standard questions
-
+        
+        // Adaptive difficulty system
+        this.userLevel = 1; // Starting level
+        this.correctStreak = 0; // Track consecutive correct answers
+        this.incorrectStreak = 0; // Track consecutive incorrect answers
+        this.levelUpThreshold = 3; // Number of correct answers needed to level up
+        this.levelDownThreshold = 2; // Number of incorrect answers needed to level down
+        
+        // Question selection
+        this.selectedMode = 'adaptive'; // 'adaptive', 'transformer', 'easy', 'medium', or 'hard'
+        this.problemTypes = ['standard', 'code']; // 'standard', 'code', or both
+        
+        // Transformer mode
+        this.transformerQuestionIndex = 0; // For sequential progression through transformer questions
+        
+        // Performance tracking
+        this.totalAnswered = 0;
+        this.totalCorrect = 0;
+        
+        // Question pools by difficulty
+        this.easyQuestions = {
+            standard: questions.filter(q => q.difficulty === 'easy'),
+            code: codeQuestions.filter(q => q.difficulty === 'easy')
+        };
+        this.mediumQuestions = {
+            standard: questions.filter(q => q.difficulty === 'medium'),
+            code: codeQuestions.filter(q => q.difficulty === 'medium')
+        };
+        this.hardQuestions = {
+            standard: questions.filter(q => q.difficulty === 'hard'),
+            code: codeQuestions.filter(q => q.difficulty === 'hard')
+        };
+        
+        // Track used questions to avoid repetition
+        this.usedQuestions = new Set();
+        
         // Initialize
         this.init();
     }
@@ -44,19 +83,24 @@ class EinsumGame {
             document.body.classList.add('dark-mode');
         }
 
-        this.updateScoreDisplay();
-        this.displayQuestion();
-
-        // Event listeners
-        this.nextQuestionButton.addEventListener('click', () => this.nextQuestion());
-        this.prevQuestionButton.addEventListener('click', () => this.prevQuestion());
-        this.hintButton.addEventListener('click', () => this.toggleHint());
-        // this.cheatsheetToggle.addEventListener('click', () => this.toggleCheatsheet());
+        // Set up event listeners for mode and difficulty selection
+        if (this.adaptiveBtn) this.adaptiveBtn.addEventListener('click', () => this.setMode('adaptive'));
+        if (this.transformerBtn) this.transformerBtn.addEventListener('click', () => this.setMode('transformer'));
+        if (this.easyBtn) this.easyBtn.addEventListener('click', () => this.setMode('easy'));
+        if (this.mediumBtn) this.mediumBtn.addEventListener('click', () => this.setMode('medium'));
+        if (this.hardBtn) this.hardBtn.addEventListener('click', () => this.setMode('hard'));
         
-        // Game mode selection
-        this.standardModeBtn.addEventListener('click', () => this.setGameMode('standard'));
-        this.codeModeBtn.addEventListener('click', () => this.setGameMode('code'));
+        if (this.standardProblemsBtn) this.standardProblemsBtn.addEventListener('click', () => this.setProblemTypes(['standard']));
+        if (this.codeProblemsBtn) this.codeProblemsBtn.addEventListener('click', () => this.setProblemTypes(['code']));
+        if (this.bothProblemsBtn) this.bothProblemsBtn.addEventListener('click', () => this.setProblemTypes(['standard', 'code']));
+        
+        if (this.resetLevelBtn) this.resetLevelBtn.addEventListener('click', () => this.resetLevel());
 
+        // Event listeners for game navigation
+        this.nextQuestionButton.addEventListener('click', () => this.nextQuestion());
+        this.prevQuestionButton.disabled = true; // Disable previous button in continuous mode
+        this.hintButton.addEventListener('click', () => this.toggleHint());
+        
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && e.ctrlKey) {
@@ -64,16 +108,203 @@ class EinsumGame {
                 if (checkAnswerButton && !checkAnswerButton.disabled) {
                     checkAnswerButton.click();
                 }
-            // } else if (e.key === 'ArrowRight' && !this.nextQuestionButton.disabled) {
-            //     this.nextQuestionButton.click();
-            // } else if (e.key === 'ArrowLeft' && !this.prevQuestionButton.disabled) {
-            //     this.prevQuestionButton.click();
-            // } 
             } else if (e.key === 'h' && e.ctrlKey) {
                 e.preventDefault();
                 this.hintButton.click();
             }
         });
+        
+        // Get the first question
+        this.updateScoreDisplay();
+        this.getNextQuestion();
+    }
+    
+    // Set the mode (adaptive, transformer, or specific difficulty)
+    setMode(mode) {
+        this.selectedMode = mode;
+        
+        // Update UI to show active mode
+        if (this.adaptiveBtn) this.adaptiveBtn.classList.remove('active');
+        if (this.transformerBtn) this.transformerBtn.classList.remove('active');
+        if (this.easyBtn) this.easyBtn.classList.remove('active');
+        if (this.mediumBtn) this.mediumBtn.classList.remove('active');
+        if (this.hardBtn) this.hardBtn.classList.remove('active');
+        
+        if (mode === 'adaptive' && this.adaptiveBtn) this.adaptiveBtn.classList.add('active');
+        if (mode === 'transformer' && this.transformerBtn) this.transformerBtn.classList.add('active');
+        if (mode === 'easy' && this.easyBtn) this.easyBtn.classList.add('active');
+        if (mode === 'medium' && this.mediumBtn) this.mediumBtn.classList.add('active');
+        if (mode === 'hard' && this.hardBtn) this.hardBtn.classList.add('active');
+        
+        // Reset transformer index when switching to transformer mode
+        if (mode === 'transformer') {
+            this.transformerQuestionIndex = 0;
+        }
+        // If switching to a specific difficulty, reset level
+        else if (mode !== 'adaptive') {
+            this.userLevel = 1;
+            this.correctStreak = 0;
+            this.incorrectStreak = 0;
+        }
+        
+        // Get a new question with the selected mode
+        this.getNextQuestion();
+    }
+    
+    // Set the problem types
+    setProblemTypes(types) {
+        this.problemTypes = types;
+        
+        // Update UI to show active problem types
+        if (this.standardProblemsBtn) this.standardProblemsBtn.classList.remove('active');
+        if (this.codeProblemsBtn) this.codeProblemsBtn.classList.remove('active');
+        if (this.bothProblemsBtn) this.bothProblemsBtn.classList.remove('active');
+        
+        if (types.includes('standard') && !types.includes('code') && this.standardProblemsBtn) {
+            this.standardProblemsBtn.classList.add('active');
+        } else if (!types.includes('standard') && types.includes('code') && this.codeProblemsBtn) {
+            this.codeProblemsBtn.classList.add('active');
+        } else if (types.includes('standard') && types.includes('code') && this.bothProblemsBtn) {
+            this.bothProblemsBtn.classList.add('active');
+        }
+        
+        // Get a new question with the selected problem types
+        this.getNextQuestion();
+    }
+    
+    // Reset the user's level
+    resetLevel() {
+        this.userLevel = 1;
+        this.correctStreak = 0;
+        this.incorrectStreak = 0;
+        
+        // Show notification
+        this.feedback.innerHTML = `
+            <div class="feedback-message correct-answer">
+                <div class="flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <p class="font-semibold">Level reset to 1!</p>
+                </div>
+            </div>
+        `;
+        
+        // Clear the feedback after a delay
+        setTimeout(() => {
+            this.feedback.innerHTML = '';
+        }, 2000);
+        
+        // Get a new question at the reset level
+        this.getNextQuestion();
+    }
+    
+    // Get the next question based on mode, difficulty, and problem types
+    getNextQuestion() {
+        // Handle transformer mode separately
+        if (this.selectedMode === 'transformer') {
+            // In transformer mode, we present questions in a specific sequence
+            if (this.transformerQuestionIndex >= transformerQuestions.length) {
+                // If we've gone through all transformer questions, start over
+                this.transformerQuestionIndex = 0;
+            }
+            
+            this.currentQuestion = transformerQuestions[this.transformerQuestionIndex];
+            this.transformerQuestionIndex++;
+        } else {
+            // For other modes, determine the difficulty level to use
+            let difficultyToUse = this.selectedMode;
+            
+            if (difficultyToUse === 'adaptive') {
+                // In adaptive mode, use the user's level to determine difficulty
+                if (this.userLevel <= 3) {
+                    difficultyToUse = 'easy';
+                } else if (this.userLevel <= 6) {
+                    difficultyToUse = 'medium';
+                } else {
+                    difficultyToUse = 'hard';
+                }
+            }
+            
+            // Get the question pool based on difficulty
+            let questionPool = [];
+            if (difficultyToUse === 'easy') {
+                this.problemTypes.forEach(type => {
+                    questionPool = questionPool.concat(this.easyQuestions[type]);
+                });
+            } else if (difficultyToUse === 'medium') {
+                this.problemTypes.forEach(type => {
+                    questionPool = questionPool.concat(this.mediumQuestions[type]);
+                });
+            } else {
+                this.problemTypes.forEach(type => {
+                    questionPool = questionPool.concat(this.hardQuestions[type]);
+                });
+            }
+            
+            // Filter out recently used questions if possible
+            let availableQuestions = questionPool.filter(q => !this.usedQuestions.has(q));
+            
+            // If we've used all questions, reset the used questions set
+            if (availableQuestions.length === 0) {
+                this.usedQuestions.clear();
+                availableQuestions = questionPool;
+            }
+            
+            // Select a random question from the available pool
+            const randomIndex = Math.floor(Math.random() * availableQuestions.length);
+            this.currentQuestion = availableQuestions[randomIndex];
+            
+            // Mark this question as used
+            this.usedQuestions.add(this.currentQuestion);
+        }
+        
+        // Display the question
+        this.displayQuestion();
+    }
+    
+    // Update the user's level based on performance
+    updateUserLevel(isCorrect) {
+        if (isCorrect) {
+            this.correctStreak++;
+            this.incorrectStreak = 0;
+            
+            // Level up if the user has answered enough questions correctly
+            if (this.correctStreak >= this.levelUpThreshold) {
+                this.userLevel++;
+                this.correctStreak = 0;
+                
+                // Show level up notification
+                this.feedback.innerHTML += `
+                    <div class="mt-4 p-4 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                        <p class="font-medium text-green-800 dark:text-green-200">
+                            <span class="font-bold">Level Up!</span> You've advanced to level ${this.userLevel}.
+                        </p>
+                    </div>
+                `;
+            }
+        } else {
+            this.incorrectStreak++;
+            this.correctStreak = 0;
+            
+            // Level down if the user has answered enough questions incorrectly
+            if (this.incorrectStreak >= this.levelDownThreshold && this.userLevel > 1) {
+                this.userLevel--;
+                this.incorrectStreak = 0;
+                
+                // Show level down notification
+                this.feedback.innerHTML += `
+                    <div class="mt-4 p-4 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+                        <p class="font-medium text-yellow-800 dark:text-yellow-200">
+                            <span class="font-bold">Level Adjusted.</span> You're now at level ${this.userLevel}.
+                        </p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Update the score display to show the user's level
+        this.updateScoreDisplay();
     }
     
     setGameMode(mode) {
@@ -101,13 +332,20 @@ class EinsumGame {
     }
 
     displayQuestion() {
-        const question = this.currentQuestions[this.currentQuestionIndex];
-        this.currentQuestion = question;
+        const question = this.currentQuestion;
         this.hintShown = false;
 
-        // Update progress indicators
-        this.questionCounter.textContent = `Question ${this.currentQuestionIndex + 1} of ${this.currentQuestions.length}`;
-        this.progressFill.style.width = `${((this.currentQuestionIndex) / this.currentQuestions.length) * 100}%`;
+        // Update progress indicators based on mode
+        if (this.selectedMode === 'transformer') {
+            // For transformer mode, show progress through the sequence
+            const progress = Math.round((this.transformerQuestionIndex / transformerQuestions.length) * 100);
+            this.questionCounter.textContent = `Transformer ${this.transformerQuestionIndex} of ${transformerQuestions.length}`;
+            this.progressFill.style.width = `${progress}%`;
+        } else {
+            // For other modes, show level and difficulty
+            this.questionCounter.textContent = `Level ${this.userLevel} - ${question.difficulty.toUpperCase()}`;
+            this.progressFill.style.width = `${Math.min(this.userLevel * 10, 100)}%`;
+        }
 
         // Set difficulty badge
         this.difficultyBadge.textContent = question.difficulty.toUpperCase();
@@ -117,22 +355,16 @@ class EinsumGame {
         this.hintText.classList.remove('show');
         this.hintText.textContent = question.hint;
         
-        // Manage previous button state
-        if (this.currentQuestionIndex === 0) {
-            this.prevQuestionButton.disabled = true;
-            this.prevQuestionButton.classList.add('opacity-50', 'cursor-not-allowed');
-            this.prevQuestionButton.classList.remove('hover:bg-blue-700');
-        } else {
-            this.prevQuestionButton.disabled = false;
-            this.prevQuestionButton.classList.remove('opacity-50', 'cursor-not-allowed');
-            this.prevQuestionButton.classList.add('hover:bg-blue-700');
-        }
+        // In continuous mode, previous button is always disabled
+        this.prevQuestionButton.disabled = true;
+        this.prevQuestionButton.classList.add('opacity-50', 'cursor-not-allowed');
+        this.prevQuestionButton.classList.remove('hover:bg-blue-700');
 
-        // Generate HTML for input tensors - only show in standard mode
+        // Generate HTML for input tensors - only show for standard problems
         let inputTensorHTML = '';
         let outputTensorHTML = '';
         
-        if (this.gameMode === 'standard') {
+        if (!question.code) {
             inputTensorHTML = question.inputTensors.map((tensor, index) => {
                 let tensorDataHTML = formatTensorData(tensor);
 
@@ -147,7 +379,7 @@ class EinsumGame {
                 `;
             }).join('');
 
-            // Generate HTML for output tensor - only show in standard mode
+            // Generate HTML for output tensor - only show for standard problems
             outputTensorHTML = `
                 <div class="mb-4">
                     <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Expected Output Tensor</h3>
@@ -162,7 +394,7 @@ class EinsumGame {
         // Create the question HTML
         let questionHTML = '';
         
-        // For code mode, display the code block
+        // For code problems, display the code block
         if (question.code) {
             questionHTML = `
                 <div class="mb-6">
@@ -186,7 +418,7 @@ class EinsumGame {
                 </div>
             `;
         } else {
-            // Standard mode
+            // Standard problem
             questionHTML = `
                 <div class="mb-6">
                     <p class="text-xl text-gray-800 dark:text-gray-200 mb-2">${question.description}</p>
@@ -222,7 +454,7 @@ class EinsumGame {
             }
         });
 
-        // Enable the next question button (allow navigation without answering)
+        // Enable the next question button (for skipping)
         this.nextQuestionButton.disabled = false;
         this.nextQuestionButton.classList.remove('opacity-50', 'cursor-not-allowed');
         this.nextQuestionButton.classList.add('hover:bg-green-700');
@@ -242,47 +474,183 @@ class EinsumGame {
         let isCorrect = false;
         let calculatedOutput;
         let failedTestCase = null;
+        // Determine if this is a code problem by checking if it has a code property
+        const isCodeProblem = !!this.currentQuestion.code;
 
         try {
-            if (this.gameMode === 'code') {
-                // For code mode, test multiple tensors and stop at the first failure
+            
+            if (isCodeProblem) {
+                // For code problems, test multiple tensors and stop at the first failure
                 const testResult = this.testMultipleTensors(userInput);
                 isCorrect = testResult.isCorrect;
                 failedTestCase = testResult.failedTestCase;
             } else {
-                // Standard mode - test only the current question's tensors
+                // Standard problem - test only the current question's tensors
                 // Convert input tensors to TensorFlow tensors
                 const tfInputTensors = this.currentQuestion.inputTensors.map(tensor => tf.tensor(tensor.data, tensor.shape));
 
-                // Calculate the output using the user's einsum string
-                calculatedOutput = tf.einsum(userInput, ...tfInputTensors).arraySync();
+                // Special handling for trace operation (any repeated indices like ii->, aa->, etc.) to avoid duplicate axes error
+                // Check if the input is a trace operation (same letter repeated)
+                const isTraceOperation = (() => {
+                    // Remove the arrow part if present
+                    const inputPart = userInput.split('->')[0];
+                    // Check if it's a single letter repeated (e.g., 'ii', 'aa', etc.)
+                    return inputPart.length === 2 && inputPart[0] === inputPart[1];
+                })();
+                
+                if (isTraceOperation) {
+                    // For trace operation, manually calculate the sum of diagonal elements
+                    const matrix = tfInputTensors[0];
+                    
+                    // Extract diagonal elements and sum them
+                    const matrixShape = matrix.shape;
+                    const minDim = Math.min(matrixShape[0], matrixShape[1]);
+                    let diagSum = 0;
+                    
+                    // Get the matrix data as a regular JavaScript array
+                    const matrixData = matrix.arraySync();
+                    
+                    // Sum the diagonal elements
+                    for (let i = 0; i < minDim; i++) {
+                        diagSum += matrixData[i][i];
+                    }
+                    
+                    calculatedOutput = diagSum;
+                    
+                    // Calculate the expected output using the correct einsum string
+                    const expectedTfInputTensors = this.currentQuestion.inputTensors.map(tensor => 
+                        tf.tensor(tensor.data, tensor.shape));
+                    const expectedOutput = tf.einsum(this.currentQuestion.einsumString, ...expectedTfInputTensors).arraySync();
+                    
+                    // Compare with the expected output
+                    isCorrect = compareTensorData(calculatedOutput, expectedOutput);
+                    
+                    // Clean up tensors to prevent memory leaks
+                    expectedTfInputTensors.forEach(tensor => tensor.dispose());
+                } else {
+                    // For other operations, use tf.einsum
+                    calculatedOutput = tf.einsum(userInput, ...tfInputTensors).arraySync();
 
-                // Compare with the expected output
-                isCorrect = compareTensorData(calculatedOutput, this.currentQuestion.outputTensor.data);
+                    // Calculate the expected output using the correct einsum string
+                    const expectedTfInputTensors = this.currentQuestion.inputTensors.map(tensor => 
+                        tf.tensor(tensor.data, tensor.shape));
+                    const expectedOutput = tf.einsum(this.currentQuestion.einsumString, ...expectedTfInputTensors).arraySync();
+                    
+                    // Compare with the expected output
+                    isCorrect = compareTensorData(calculatedOutput, expectedOutput);
+
+                    // Clean up tensors to prevent memory leaks
+                    expectedTfInputTensors.forEach(tensor => tensor.dispose());
+                }
 
                 // Clean up tensors to prevent memory leaks
                 tfInputTensors.forEach(tensor => tensor.dispose());
             }
         } catch (error) {
             console.error("TensorFlow.js error:", error);
+            
+            // Update performance tracking - count invalid einsum as a wrong answer
+            this.totalAnswered++;
+            // Update user level based on performance (false = incorrect)
+            this.updateUserLevel(false);
+            
             this.feedback.innerHTML = `<div class="feedback-message wrong-answer">
-                <p class="font-semibold">Invalid einsum string</p>
-                <p class="text-sm mt-1">Please check the format (e.g., 'ij,jk->ik'). ${error.message}</p>
+                <div class="flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    <p class="font-semibold">Invalid einsum string</p>
+                </div>
+                <p class="mt-2">Please check the format (e.g., 'ij,jk->ik'). ${error.message}</p>
             </div>`;
 
-            // Enable the navigation buttons
+            // Add show answer and skip buttons for invalid einsum
+            this.feedback.innerHTML += `
+                <div class="mt-6 flex flex-col sm:flex-row justify-center gap-4">
+                    <button id="show-answer-button" class="btn bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-6 rounded-lg flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                        </svg>
+                        Show Correct Answer
+                    </button>
+                    <button id="skip-button" class="btn bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-6 rounded-lg flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10.293 15.707a1 1 0 010-1.414L14.586 10l-4.293-4.293a1 1 0 111.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                            <path fill-rule="evenodd" d="M4.293 15.707a1 1 0 010-1.414L8.586 10 4.293 5.707a1 1 0 011.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                        </svg>
+                        Skip to Next Question
+                    </button>
+                </div>
+                
+                <div id="correct-answer-container" class="mt-4 hidden">
+                    <div class="p-4 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <p class="font-medium text-gray-700 dark:text-gray-300 mb-1">Your einsum string:</p>
+                                <code class="monospace bg-white dark:bg-gray-800 px-2 py-1 rounded">${userInput}</code>
+                            </div>
+                            <div>
+                                <p class="font-medium text-gray-700 dark:text-gray-300 mb-1">Correct einsum string:</p>
+                                <code class="monospace bg-white dark:bg-gray-800 px-2 py-1 rounded">${this.currentQuestion.einsumString}</code>
+                            </div>
+                        </div>
+                        <div class="game-explanation mt-2 bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800">
+                            <p class="font-medium mb-2">Explanation:</p>
+                            <p>${this.currentQuestion.explanation}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Enable the next question button
             this.nextQuestionButton.disabled = false;
             this.nextQuestionButton.classList.remove('opacity-50', 'cursor-not-allowed');
             this.nextQuestionButton.classList.add('hover:bg-green-700');
             
-            // Enable the previous button if not on the first question
-            if (this.currentQuestionIndex > 0) {
-                this.prevQuestionButton.disabled = false;
-                this.prevQuestionButton.classList.remove('opacity-50', 'cursor-not-allowed');
-                this.prevQuestionButton.classList.add('hover:bg-blue-700');
+            // Add event listeners to the buttons
+            const showAnswerButton = document.getElementById('show-answer-button');
+            const skipButton = document.getElementById('skip-button');
+            const correctAnswerContainer = document.getElementById('correct-answer-container');
+            
+            if (showAnswerButton && correctAnswerContainer) {
+                showAnswerButton.addEventListener('click', () => {
+                    // Show the correct answer container
+                    correctAnswerContainer.classList.remove('hidden');
+                    
+                    // Change the show answer button to indicate the answer is shown
+                    showAnswerButton.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                        </svg>
+                        Answer Shown
+                    `;
+                    showAnswerButton.disabled = true;
+                    showAnswerButton.classList.add('opacity-50', 'cursor-not-allowed');
+                    showAnswerButton.classList.remove('hover:bg-purple-700');
+                    
+                    // Scroll to the correct answer container
+                    correctAnswerContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                });
             }
+            
+            if (skipButton) {
+                skipButton.addEventListener('click', () => this.getNextQuestion());
+            }
+            
+            // Scroll to the feedback
+            this.feedback.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            
             return;
         }
+
+        // Update performance tracking
+        this.totalAnswered++;
+        if (isCorrect) {
+            this.totalCorrect++;
+        }
+        
+        // Update user level based on performance
+        this.updateUserLevel(isCorrect);
 
         // Generate feedback HTML
         let feedbackHTML = '';
@@ -299,8 +667,8 @@ class EinsumGame {
                     </div>
                 </div>`;
                 
-            // For code mode, show all test cases that passed
-            if (this.gameMode === 'code') {
+            // For code problems, show all test cases that passed
+            if (isCodeProblem) {
                 feedbackHTML += `
                 <div class="mt-4 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
                     <p class="font-medium text-gray-700 dark:text-gray-300 mb-2">All test cases passed!</p>
@@ -309,17 +677,36 @@ class EinsumGame {
             }
             
             feedbackHTML += `
-                <div class="game-explanation mt-4">
-                    <p class="font-medium mb-2">Explanation:</p>
-                    <p>${this.currentQuestion.explanation}</p>
+                <div class="p-4 bg-green-100 dark:bg-green-900/30 rounded-lg mt-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <p class="font-medium text-gray-700 dark:text-gray-300 mb-1">Your einsum string:</p>
+                            <code class="monospace bg-white dark:bg-gray-800 px-2 py-1 rounded">${userInput}</code>
+                        </div>
+                        <div>
+                            <p class="font-medium text-gray-700 dark:text-gray-300 mb-1">Correct einsum string:</p>
+                            <code class="monospace bg-white dark:bg-gray-800 px-2 py-1 rounded">${this.currentQuestion.einsumString}</code>
+                        </div>
+                    </div>
+                    <div class="game-explanation mt-2 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+                        <p class="font-medium mb-2">Explanation:</p>
+                        <p>${this.currentQuestion.explanation}</p>
+                    </div>
+                </div>
+                
+                <div class="mt-6 flex justify-center">
+                    <button id="next-question-button" class="btn bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-lg flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                        Next Question
+                    </button>
                 </div>
             `;
-            this.score++;
-            this.updateScoreDisplay();
         } else {
             // Wrong answer
-            if (this.gameMode === 'code' && failedTestCase) {
-                // Show the failed test case details for code mode
+            if (isCodeProblem && failedTestCase) {
+                // Show the failed test case details for code problems
                 feedbackHTML = `
                     <div class="feedback-message wrong-answer">
                         <div class="flex items-center">
@@ -362,21 +749,43 @@ class EinsumGame {
                             <p class="text-sm text-gray-600 dark:text-gray-400">${failedTestCase.explanation}</p>
                         </div>
                     </div>
-                    <div class="mt-4 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <p class="font-medium text-gray-700 dark:text-gray-300 mb-1">Your einsum string:</p>
-                                <code class="monospace bg-white dark:bg-gray-800 px-2 py-1 rounded">${userInput}</code>
+                    
+                    <div class="mt-6 flex flex-col sm:flex-row justify-center gap-4">
+                        <button id="show-answer-button" class="btn bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-6 rounded-lg flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                            </svg>
+                            Show Correct Answer
+                        </button>
+                        <button id="next-question-button" class="btn bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-lg flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+                            </svg>
+                            Next Question
+                        </button>
+                    </div>
+                    
+                    <div id="correct-answer-container" class="mt-4 hidden">
+                        <div class="p-4 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <p class="font-medium text-gray-700 dark:text-gray-300 mb-1">Your einsum string:</p>
+                                    <code class="monospace bg-white dark:bg-gray-800 px-2 py-1 rounded">${userInput}</code>
+                                </div>
+                                <div>
+                                    <p class="font-medium text-gray-700 dark:text-gray-300 mb-1">Correct einsum string:</p>
+                                    <code class="monospace bg-white dark:bg-gray-800 px-2 py-1 rounded">${this.currentQuestion.einsumString}</code>
+                                </div>
                             </div>
-                            <div>
-                                <p class="font-medium text-gray-700 dark:text-gray-300 mb-1">Correct einsum string:</p>
-                                <code class="monospace bg-white dark:bg-gray-800 px-2 py-1 rounded">${this.currentQuestion.einsumString}</code>
+                            <div class="game-explanation mt-2 bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800">
+                                <p class="font-medium mb-2">Explanation:</p>
+                                <p>${this.currentQuestion.explanation}</p>
                             </div>
                         </div>
                     </div>
                 `;
             } else {
-                // Standard mode or code mode without specific test case
+                // Standard problem or code problem without specific test case
                 const explanation = getWrongAnswerExplanation(
                     userInput, 
                     calculatedOutput, 
@@ -394,21 +803,46 @@ class EinsumGame {
                         </div>
                         <p class="mt-2">${explanation}</p>
                     </div>
-                    <div class="mt-4 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <p class="font-medium text-gray-700 dark:text-gray-300 mb-1">Your einsum string:</p>
-                                <code class="monospace bg-white dark:bg-gray-800 px-2 py-1 rounded">${userInput}</code>
+                    
+                    <div class="mt-6 flex flex-col sm:flex-row justify-center gap-4">
+                        <button id="try-again-button" class="btn bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
+                            </svg>
+                            Try Again
+                        </button>
+                        <button id="show-answer-button" class="btn bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-6 rounded-lg flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                            </svg>
+                            Show Correct Answer
+                        </button>
+                        <button id="skip-button" class="btn bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-6 rounded-lg flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10.293 15.707a1 1 0 010-1.414L14.586 10l-4.293-4.293a1 1 0 111.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                                <path fill-rule="evenodd" d="M4.293 15.707a1 1 0 010-1.414L8.586 10 4.293 5.707a1 1 0 011.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                            </svg>
+                            Skip to Next Question
+                        </button>
+                    </div>
+                    
+                    <div id="correct-answer-container" class="mt-4 hidden">
+                        <div class="p-4 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <p class="font-medium text-gray-700 dark:text-gray-300 mb-1">Your einsum string:</p>
+                                    <code class="monospace bg-white dark:bg-gray-800 px-2 py-1 rounded">${userInput}</code>
+                                </div>
+                                <div>
+                                    <p class="font-medium text-gray-700 dark:text-gray-300 mb-1">Correct einsum string:</p>
+                                    <code class="monospace bg-white dark:bg-gray-800 px-2 py-1 rounded">${this.currentQuestion.einsumString}</code>
+                                </div>
                             </div>
-                            <div>
-                                <p class="font-medium text-gray-700 dark:text-gray-300 mb-1">Correct einsum string:</p>
-                                <code class="monospace bg-white dark:bg-gray-800 px-2 py-1 rounded">${this.currentQuestion.einsumString}</code>
+                            <div class="game-explanation mt-2 bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800">
+                                <p class="font-medium mb-2">Explanation:</p>
+                                <p>${this.currentQuestion.explanation}</p>
                             </div>
                         </div>
-                    </div>
-                    <div class="game-explanation mt-4">
-                        <p class="font-medium mb-2">Explanation:</p>
-                        <p>${this.currentQuestion.explanation}</p>
                     </div>
                 `;
             }
@@ -417,23 +851,45 @@ class EinsumGame {
         // Update the feedback
         this.feedback.innerHTML = feedbackHTML;
 
-        // Enable the navigation buttons
-        this.nextQuestionButton.disabled = false;
-        this.nextQuestionButton.classList.remove('opacity-50', 'cursor-not-allowed');
-        this.nextQuestionButton.classList.add('hover:bg-green-700');
-        
-        // Enable the previous button if not on the first question
-        if (this.currentQuestionIndex > 0) {
-            this.prevQuestionButton.disabled = false;
-            this.prevQuestionButton.classList.remove('opacity-50', 'cursor-not-allowed');
-            this.prevQuestionButton.classList.add('hover:bg-blue-700');
+        // Add event listeners to the buttons
+        if (isCorrect) {
+            const nextQuestionButton = document.getElementById('next-question-button');
+            if (nextQuestionButton) {
+                nextQuestionButton.addEventListener('click', () => this.getNextQuestion());
+            }
+        } else {
+            const nextQuestionButton = document.getElementById('next-question-button');
+            const showAnswerButton = document.getElementById('show-answer-button');
+            const correctAnswerContainer = document.getElementById('correct-answer-container');
+            
+            if (nextQuestionButton) {
+                nextQuestionButton.addEventListener('click', () => this.getNextQuestion());
+            }
+            
+            if (showAnswerButton && correctAnswerContainer) {
+                showAnswerButton.addEventListener('click', () => {
+                    // Show the correct answer container
+                    correctAnswerContainer.classList.remove('hidden');
+                    
+                    // Change the show answer button to indicate the answer is shown
+                    showAnswerButton.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                        </svg>
+                        Answer Shown
+                    `;
+                    showAnswerButton.disabled = true;
+                    showAnswerButton.classList.add('opacity-50', 'cursor-not-allowed');
+                    showAnswerButton.classList.remove('hover:bg-purple-700');
+                    
+                    // Scroll to the correct answer container
+                    correctAnswerContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                });
+            }
         }
 
         // Scroll to the feedback
         this.feedback.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        
-        // Focus on the next question button after checking the answer
-        this.nextQuestionButton.focus();
     }
 
     formatCodeWithSyntaxHighlighting(code) {
@@ -446,18 +902,11 @@ class EinsumGame {
     }
 
     nextQuestion() {
-        this.currentQuestionIndex++;
-
-        if (this.currentQuestionIndex < this.currentQuestions.length) {
-            // Display the next question
-            this.displayQuestion();
-
-            // Scroll to the top of the game content
-            this.gameContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        } else {
-            // Game over
-            this.showGameOver();
-        }
+        // In continuous mode, just get the next question
+        this.getNextQuestion();
+        
+        // Scroll to the top of the game content
+        this.gameContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
     
     prevQuestion() {
@@ -558,7 +1007,15 @@ class EinsumGame {
     }
 
     updateScoreDisplay() {
-        this.scoreDisplay.textContent = `Score: ${this.score}/${this.currentQuestions.length}`;
+        // Calculate accuracy if there are answered questions
+        let accuracyText = '';
+        if (this.totalAnswered > 0) {
+            const accuracy = Math.round((this.totalCorrect / this.totalAnswered) * 100);
+            accuracyText = ` | Accuracy: ${accuracy}%`;
+        }
+        
+        // Show level and accuracy
+        this.scoreDisplay.textContent = `Level: ${this.userLevel}${accuracyText}`;
     }
 
     toggleCheatsheet() {
@@ -596,8 +1053,8 @@ class EinsumGame {
     }
     
     testMultipleTensors(userInput) {
-        // Generate multiple test cases based on the current question
-        const testCases = this.generateTestCases();
+        // Use test cases from the question file if available, otherwise generate them
+        const testCases = this.currentQuestion.testCases || this.generateTestCases();
         
         // Test each case with the user's einsum string
         for (const testCase of testCases) {
@@ -609,11 +1066,17 @@ class EinsumGame {
                 // Calculate the output using the user's einsum string
                 const calculatedOutput = tf.einsum(userInput, ...tfInputTensors).arraySync();
                 
+                // Calculate the expected output using the correct einsum string
+                const expectedTfInputTensors = testCase.inputTensors.map(tensor => 
+                    tf.tensor(tensor.data, tensor.shape));
+                const expectedOutput = tf.einsum(this.currentQuestion.einsumString, ...expectedTfInputTensors).arraySync();
+                
                 // Compare with the expected output
-                const isCorrect = compareTensorData(calculatedOutput, testCase.expectedOutput.data);
+                const isCorrect = compareTensorData(calculatedOutput, expectedOutput);
                 
                 // Clean up tensors to prevent memory leaks
                 tfInputTensors.forEach(tensor => tensor.dispose());
+                expectedTfInputTensors.forEach(tensor => tensor.dispose());
                 
                 // If this test case failed, return the details
                 if (!isCorrect) {
@@ -626,7 +1089,7 @@ class EinsumGame {
                             explanation: getWrongAnswerExplanation(
                                 userInput,
                                 calculatedOutput,
-                                testCase.expectedOutput.data,
+                                expectedOutput,
                                 this.currentQuestion.einsumString
                             )
                         }
@@ -658,10 +1121,12 @@ class EinsumGame {
         const testCases = [];
         
         // Always include the original test case from the question
-        testCases.push({
+        // We'll calculate the expected output using TensorFlow.js with the correct einsum string
+        const originalCase = {
             inputTensors: question.inputTensors,
-            expectedOutput: question.outputTensor
-        });
+            expectedOutput: question.outputTensor // This will be recalculated in testMultipleTensors
+        };
+        testCases.push(originalCase);
         
         // Generate additional test cases based on the question type
         const einsumParts = question.einsumString.split('->');

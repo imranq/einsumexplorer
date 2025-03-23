@@ -230,6 +230,19 @@ body {
     margin-top: 1rem;
 }
 
+/* Correct answer container styles */
+#correct-answer-container {
+    transition: all 0.3s ease-in-out;
+}
+
+#correct-answer-container.hidden {
+    display: none;
+}
+
+#correct-answer-container:not(.hidden) {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
 .progress-bar {
     height: 0.5rem;
     background-color: #e5e7eb;
@@ -283,7 +296,7 @@ body {
 }
 
 .difficulty-badge {
-    display: inline-block;
+    display: none;
     padding: 0.25rem 0.75rem;
     border-radius: 9999px;
     font-size: 0.75rem;
@@ -414,15 +427,35 @@ body {
     color: #fde68a;
 }
 
-/* Game mode selection */
-.game-mode-btn {
+/* Game mode and difficulty selection */
+.game-mode-btn,
+#easy-mode,
+#medium-mode,
+#hard-mode,
+#adaptive-mode,
+#standard-problems,
+#code-problems,
+#both-problems {
     transition: all 0.2s ease;
     border: 2px solid transparent;
 }
 
-.game-mode-btn.active {
+.game-mode-btn.active,
+#easy-mode.active,
+#medium-mode.active,
+#hard-mode.active,
+#adaptive-mode.active,
+#standard-problems.active,
+#code-problems.active,
+#both-problems.active {
     border-color: currentColor;
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+    font-weight: 600;
+}
+
+/* Reset level button hover effect */
+#reset-level:hover {
+    transform: scale(1.02);
 }
 
 /* Code mode styles */
