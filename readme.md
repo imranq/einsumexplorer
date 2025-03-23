@@ -1,77 +1,73 @@
-Einsum Trainer:
-Adaptive Quiz Engine:
+# Einsum Explorer
 
-Difficulty Adjustment: The quiz difficulty automatically adjusts based on the user's performance. Get a question right? The next one is harder. Get it wrong? The next one is easier.
+![Einsum Explorer](https://img.shields.io/badge/Einsum-Explorer-blue)
+![Version](https://img.shields.io/badge/version-1.0.0-green)
+![License](https://img.shields.io/badge/license-MIT-orange)
 
-Concept Mapping: Track which Einsum concepts the user is struggling with (e.g., understanding indices, contraction, broadcasting). Focus future questions on those weak areas.
+## 🚀 Overview
 
-Personalized Quizzes: Generate quizzes tailored to the user's current skill level and learning needs.
+**Einsum Explorer** is an interactive educational tool designed to help you master Einstein Summation notation (einsum) - a powerful and concise way to express operations on multi-dimensional arrays. Whether you're a machine learning practitioner, physicist, or data scientist, understanding einsum can significantly enhance your ability to work with tensors and complex mathematical operations.
 
-Interactive Question Types:
+This application provides an adaptive learning experience with interactive exercises, immediate feedback, and comprehensive explanations to help you build intuition and proficiency with einsum notation.
 
-Visual Einsum Expression Builder:
+## ✨ Features
 
-The user builds the correct Einsum expression by dragging and dropping indices, tensor names, and the -> symbol. This forces them to actively think about the structure.
+### 🔍 Rich Learning Resources
 
-The app validates the expression as they build it, giving immediate feedback on syntax errors.
+- **Interactive Tutorial**: Learn the fundamentals of einsum notation
+- **Notation Cheatsheet**: Quick reference for common einsum patterns
+- **Detailed Explanations**: Each question includes thorough explanations of the correct solution
+- **Contextual Hints**: Get help when you're stuck without seeing the full answer
 
-Tensor Shape Prediction:
+### 💡 Smart Feedback System
 
-Show the input tensors and a (potentially incomplete) Einsum expression. The user predicts the shape of the resulting tensor. This reinforces understanding of index manipulation.
+- **Immediate Validation**: Get instant feedback on your answers
+- **Detailed Error Analysis**: Understand why your answer was incorrect
+- **Visual Comparisons**: See the difference between your output and the expected result
 
-Interactive Tensor Filling:
+## 🖥️ Technical Details
 
-Show input tensors and an Einsum expression. The user fills in specific values in the resulting tensor (e.g., "What is the value at index [0, 1]?"). This connects the abstract notation to concrete calculations.
+Einsum Explorer is built with modern web technologies:
 
-Instead of typing, the user can use a slider or number pad to select the value.
+- **Frontend**: HTML5, CSS3 (with Tailwind CSS), JavaScript (ES6+)
+- **Tensor Operations**: TensorFlow.js for handling tensor computations
+- **Responsive Design**: Works on desktop and mobile devices
+- **Dark Mode Support**: Comfortable viewing in any lighting environment
 
-"Reverse Einsum":
+## 🚦 Getting Started
 
-Show the input tensors and the desired output tensor. The user must construct the Einsum expression that produces the output. This is a challenging but powerful way to internalize the logic.
+### Prerequisites
 
-Error Detection:
+- A modern web browser (Chrome, Firefox, Safari, Edge)
+- No installation required - runs entirely in the browser!
 
-Show a "broken" Einsum expression or code snippet that's supposed to do something (like matrix multiplication). The user has to identify the error.
+## 📖 How to Use
 
-The user might have to select the line with the error or even drag and drop elements to fix it.
+1. **Choose a Mode**: Select from Adaptive, Transformer, or a specific difficulty level
+2. **Answer Questions**: Type your einsum string in the input field
+3. **Get Feedback**: Receive immediate feedback on your answer
+4. **Learn from Explanations**: Read the detailed explanations to deepen your understanding
+5. **Use Hints**: If you're stuck, use the hint feature for guidance
+6. **Track Progress**: Monitor your level and accuracy as you improve
 
-Smart Feedback System:
+## 🧩 Example Operations You'll Master
 
-Immediate Validation: The app validates the user's answer as soon as they submit it.
+| Operation | Einsum Notation | Description |
+|-----------|-----------------|-------------|
+| Matrix Multiplication | `ij,jk->ik` | Multiply two matrices |
+| Dot Product | `i,i->` | Calculate the dot product of two vectors |
+| Transpose | `ij->ji` | Transpose a matrix |
+| Batch Matrix Multiplication | `bij,bjk->bik` | Multiply batches of matrices |
+| Diagonal Extraction | `ii->i` | Extract the diagonal elements of a matrix |
+| Outer Product | `i,j->ij` | Calculate the outer product of two vectors |
+| Trace | `ii->` | Calculate the trace of a matrix |
+| Matrix-Vector Multiplication | `ij,j->i` | Multiply a matrix by a vector |
 
-"Explain My Mistake": If the user gets a question wrong, the app provides a detailed explanation of why their answer was incorrect and how to arrive at the correct answer. Don't just give the answer – explain the reasoning.
+## 📄 License
 
-Visual Debugging:
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-Show a step-by-step breakdown of the correct Einsum calculation, highlighting the elements being multiplied and summed.
+## 🙏 Acknowledgments
 
-Visually compare the user's (incorrect) approach with the correct approach, pointing out the differences.
-
-Concept Links: Link the explanation to relevant concepts or "mini-lessons" that provide a refresher on the underlying principles.
-
-Dynamic Problem Generation:
-
-Procedural Content Generation: Generate new quiz questions on-the-fly, rather than relying on a fixed set of questions. This makes the quizzes more engaging and prevents users from memorizing the answers.
-
-Parameter Variation: Vary the parameters of the quiz questions (tensor sizes, index names, operation types) to create a wide range of challenges.
-
-Avoid Repetition: Track the questions the user has already answered and avoid repeating them too frequently.
-
-Progress & Gamification:
-
-Skill Tree/Graph: Visualize the user's progress through the various Einsum concepts. Show which concepts they have mastered and which ones they still need to work on.
-
-Achievements/Badges: Award achievements for mastering concepts, completing quizzes, and achieving certain milestones.
-
-Daily Challenges: Provide a daily set of quiz questions to encourage regular practice.
-
-Streaks: Track the user's streak of correct answers to motivate them to keep learning.
-
-Leaderboards (Optional): Let users compete with each other (carefully, to avoid discouraging beginners). Focus on friendly competition and personal improvement.
-
-UI/UX:
-
-Gamified Interface: Make the app feel like a game, with engaging visuals, sound effects, and animations.
-
-Clean Design: Avoid clutter and focus on the quiz questions.
-# einsumexplorer
+- Einstein, for developing the summation notation
+- The TensorFlow.js team for making tensor operations accessible in the browser
