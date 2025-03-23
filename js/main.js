@@ -8,4 +8,6 @@ window.addEventListener('DOMContentLoaded', () => {
     
     // Initialize the tutorial
     const tutorial = new Tutorial();
+    
+    // Setup dark mode toggle
 });

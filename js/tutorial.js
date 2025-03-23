@@ -1,30 +1,40 @@
 /**
- * Creates and manages the tutorial modal for the Einsum Explorer
+ * Creates and manages the combined tutorial and cheatsheet modal for the Einsum Explorer
  */
 class Tutorial {
     constructor() {
-        this.createTutorialModal();
-        this.addTutorialButton();
+        this.createCombinedModal();
         this.setupEventListeners();
     }
 
     /**
-     * Creates the tutorial modal HTML and adds it to the document
+     * Creates the combined tutorial and cheatsheet modal HTML and adds it to the document
      */
-    createTutorialModal() {
-        const tutorialHTML = `
-            <div id="tutorial-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 max-w-2xl max-h-[90vh] overflow-y-auto">
+    createCombinedModal() {
+        const combinedHTML = `
+            <div id="learning-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 max-w-4xl max-h-[90vh] overflow-y-auto">
                     <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-xl font-bold text-gray-800 dark:text-gray-200">Einsum Notation Tutorial</h2>
-                        <button id="close-tutorial" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                        <h2 class="text-xl font-bold text-gray-800 dark:text-gray-200">Einsum Learning Resources</h2>
+                        <button id="close-learning-modal" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </button>
                     </div>
                     
-                    <div class="space-y-4">
+                    <!-- Tab Navigation -->
+                    <div class="flex border-b border-gray-200 dark:border-gray-700 mb-4">
+                        <button id="tutorial-tab" class="px-4 py-2 font-medium text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400">
+                            Tutorial
+                        </button>
+                        <button id="cheatsheet-tab" class="px-4 py-2 font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+                            Notation Cheatsheet
+                        </button>
+                    </div>
+                    
+                    <!-- Tutorial Content -->
+                    <div id="tutorial-content" class="space-y-4">
                         <div>
                             <h3 class="font-medium text-gray-800 dark:text-gray-200 mb-2">What is Einstein Summation?</h3>
                             <p class="text-gray-600 dark:text-gray-400">
@@ -66,6 +76,46 @@ class Tutorial {
                         </div>
                     </div>
                     
+                    <!-- Cheatsheet Content -->
+                    <div id="cheatsheet-content" class="hidden space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                                <h3 class="font-medium text-gray-800 dark:text-gray-200 mb-2">Basic Operations</h3>
+                                <ul class="space-y-2 text-sm">
+                                    <li><code class="monospace bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded">ij-></code>: Sum all
+                                        elements in a matrix</li>
+                                    <li><code class="monospace bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded">ii-></code>: Trace of
+                                        a matrix (sum of diagonal elements)</li>
+                                    <li><code class="monospace bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded">ij->ji</code>:
+                                        Transpose a matrix</li>
+                                    <li><code class="monospace bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded">i,i-></code>: Dot
+                                        product of two vectors</li>
+                                    <li><code class="monospace bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded">i,j->ij</code>: Outer
+                                        product of two vectors</li>
+                                </ul>
+                            </div>
+                            <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                                <h3 class="font-medium text-gray-800 dark:text-gray-200 mb-2">Matrix Operations</h3>
+                                <ul class="space-y-2 text-sm">
+                                    <li><code class="monospace bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded">ij,jk->ik</code>:
+                                        Matrix multiplication</li>
+                                    <li><code class="monospace bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded">ij,j->i</code>:
+                                        Matrix-vector multiplication</li>
+                                    <li><code class="monospace bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded">ijk->ik</code>: Sum
+                                        along the j axis</li>
+                                    <li><code class="monospace bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded">ii->i</code>: Extract
+                                        diagonal elements</li>
+                                    <li><code class="monospace bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded">ijk,ikl->ijl</code>:
+                                        Batch matrix multiplication</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="mt-4 text-sm text-gray-600 dark:text-gray-400">
+                            <p>In einsum notation, repeated indices are summed over. Indices that appear in the output are kept,
+                                while those that don't appear are reduced.</p>
+                        </div>
+                    </div>
+                    
                     <button id="start-practice" class="mt-6 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg w-full">
                         Start Practicing
                     </button>
@@ -74,44 +124,58 @@ class Tutorial {
         `;
 
         // Add to the document
-        const tutorialContainer = document.createElement('div');
-        tutorialContainer.innerHTML = tutorialHTML;
-        document.body.appendChild(tutorialContainer);
+        const modalContainer = document.createElement('div');
+        modalContainer.innerHTML = combinedHTML;
+        document.body.appendChild(modalContainer);
     }
 
     /**
-     * Adds the tutorial button to the header
-     */
-    addTutorialButton() {
-        const headerDiv = document.querySelector('header > div:last-child');
-        const tutorialButton = document.createElement('button');
-        tutorialButton.id = 'tutorial-button';
-        tutorialButton.className = 'flex items-center bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-4 py-2 rounded-lg font-medium mr-4';
-        tutorialButton.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z" />
-            </svg>
-            Tutorial
-        `;
-        headerDiv.insertBefore(tutorialButton, headerDiv.firstChild);
-    }
-
-    /**
-     * Sets up event listeners for the tutorial
+     * Sets up event listeners for the combined modal
      */
     setupEventListeners() {
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('tutorial-button').addEventListener('click', () => {
-                document.getElementById('tutorial-modal').classList.remove('hidden');
+        // Learning resources button event listener
+        const learningButton = document.getElementById('learning-resources-btn');
+        if (learningButton) {
+            learningButton.addEventListener('click', () => {
+                document.getElementById('learning-modal').classList.remove('hidden');
             });
+        }
 
-            document.getElementById('close-tutorial').addEventListener('click', () => {
-                document.getElementById('tutorial-modal').classList.add('hidden');
-            });
+        // Close button event listener
+        document.getElementById('close-learning-modal').addEventListener('click', () => {
+            document.getElementById('learning-modal').classList.add('hidden');
+        });
 
-            document.getElementById('start-practice').addEventListener('click', () => {
-                document.getElementById('tutorial-modal').classList.add('hidden');
-            });
+        // Start practice button event listener
+        document.getElementById('start-practice').addEventListener('click', () => {
+            document.getElementById('learning-modal').classList.add('hidden');
+        });
+
+        // Tab switching event listeners
+        document.getElementById('tutorial-tab').addEventListener('click', () => {
+            // Update tab styling
+            document.getElementById('tutorial-tab').classList.add('text-blue-600', 'dark:text-blue-400', 'border-b-2', 'border-blue-600', 'dark:border-blue-400');
+            document.getElementById('tutorial-tab').classList.remove('text-gray-500', 'dark:text-gray-400');
+            
+            document.getElementById('cheatsheet-tab').classList.remove('text-blue-600', 'dark:text-blue-400', 'border-b-2', 'border-blue-600', 'dark:border-blue-400');
+            document.getElementById('cheatsheet-tab').classList.add('text-gray-500', 'dark:text-gray-400');
+            
+            // Show/hide content
+            document.getElementById('tutorial-content').classList.remove('hidden');
+            document.getElementById('cheatsheet-content').classList.add('hidden');
+        });
+
+        document.getElementById('cheatsheet-tab').addEventListener('click', () => {
+            // Update tab styling
+            document.getElementById('cheatsheet-tab').classList.add('text-blue-600', 'dark:text-blue-400', 'border-b-2', 'border-blue-600', 'dark:border-blue-400');
+            document.getElementById('cheatsheet-tab').classList.remove('text-gray-500', 'dark:text-gray-400');
+            
+            document.getElementById('tutorial-tab').classList.remove('text-blue-600', 'dark:text-blue-400', 'border-b-2', 'border-blue-600', 'dark:border-blue-400');
+            document.getElementById('tutorial-tab').classList.add('text-gray-500', 'dark:text-gray-400');
+            
+            // Show/hide content
+            document.getElementById('tutorial-content').classList.add('hidden');
+            document.getElementById('cheatsheet-content').classList.remove('hidden');
         });
     }
 }
