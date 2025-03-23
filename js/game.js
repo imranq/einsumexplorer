@@ -731,9 +731,9 @@ class EinsumGame {
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
                                 <p class="font-medium text-gray-700 dark:text-gray-300 mb-1">Expected Output:</p>
-                                <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Shape: [${failedTestCase.expectedOutput.shape.join(', ')}]</p>
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Shape: [${failedTestCase.expectedOutput && failedTestCase.expectedOutput.shape ? failedTestCase.expectedOutput.shape.join(', ') : 'undefined'}]</p>
                                 <div class="tensor-container bg-white dark:bg-gray-800 p-2 rounded-lg overflow-auto">
-                                    ${formatTensorData(failedTestCase.expectedOutput)}
+                                    ${failedTestCase.expectedOutput ? formatTensorData(failedTestCase.expectedOutput) : 'No expected output available'}
                                 </div>
                             </div>
                             <div>
@@ -1054,7 +1054,7 @@ class EinsumGame {
     
     testMultipleTensors(userInput) {
         // Use test cases from the question file if available, otherwise generate them
-        const testCases = this.currentQuestion.testCases || this.generateTestCases();
+        const testCases = this.currentQuestion.testCases;
         
         // Test each case with the user's einsum string
         for (const testCase of testCases) {
@@ -1070,7 +1070,7 @@ class EinsumGame {
                 const expectedTfInputTensors = testCase.inputTensors.map(tensor => 
                     tf.tensor(tensor.data, tensor.shape));
                 const expectedOutput = tf.einsum(this.currentQuestion.einsumString, ...expectedTfInputTensors).arraySync();
-                
+                console.log(expectedOutput);
                 // Compare with the expected output
                 const isCorrect = compareTensorData(calculatedOutput, expectedOutput);
                 
@@ -1084,7 +1084,7 @@ class EinsumGame {
                         isCorrect: false,
                         failedTestCase: {
                             inputTensors: testCase.inputTensors,
-                            expectedOutput: testCase.expectedOutput,
+                            expectedOutput: testCase.outputTensor || { data: expectedOutput, shape: getShape(expectedOutput) },
                             actualOutput: calculatedOutput,
                             explanation: getWrongAnswerExplanation(
                                 userInput,
@@ -1101,7 +1101,7 @@ class EinsumGame {
                     isCorrect: false,
                     failedTestCase: {
                         inputTensors: testCase.inputTensors,
-                        expectedOutput: testCase.expectedOutput,
+                        expectedOutput: testCase.outputTensor,
                         actualOutput: null,
                         explanation: `Error: ${error.message}`
                     }
@@ -1116,283 +1116,283 @@ class EinsumGame {
         };
     }
     
-    generateTestCases() {
-        const question = this.currentQuestion;
-        const testCases = [];
+    // generateTestCases() {
+    //     const question = this.currentQuestion;
+    //     const testCases = [];
         
-        // Always include the original test case from the question
-        // We'll calculate the expected output using TensorFlow.js with the correct einsum string
-        const originalCase = {
-            inputTensors: question.inputTensors,
-            expectedOutput: question.outputTensor // This will be recalculated in testMultipleTensors
-        };
-        testCases.push(originalCase);
+    //     // Always include the original test case from the question
+    //     // We'll calculate the expected output using TensorFlow.js with the correct einsum string
+    //     const originalCase = {
+    //         inputTensors: question.inputTensors,
+    //         expectedOutput: question.outputTensor // This will be recalculated in testMultipleTensors
+    //     };
+    //     testCases.push(originalCase);
         
-        // Generate additional test cases based on the question type
-        const einsumParts = question.einsumString.split('->');
-        const inputPart = einsumParts[0];
-        const outputPart = einsumParts[1];
+    //     // Generate additional test cases based on the question type
+    //     const einsumParts = question.einsumString.split('->');
+    //     const inputPart = einsumParts[0];
+    //     const outputPart = einsumParts[1];
         
-        // Determine the type of operation based on the einsum string
-        if (inputPart.includes(',')) {
-            // Multiple input tensors (e.g., matrix multiplication, dot product)
+    //     // Determine the type of operation based on the einsum string
+    //     if (inputPart.includes(',')) {
+    //         // Multiple input tensors (e.g., matrix multiplication, dot product)
             
-            // For matrix multiplication (ik,kj->ij)
-            if (question.einsumString === 'ik,kj->ij') {
-                // Add a test case with different dimensions
-                testCases.push(this.generateMatrixMultiplicationTestCase(3, 4, 2));
-                testCases.push(this.generateMatrixMultiplicationTestCase(4, 2, 5));
-            } 
-            // For dot product (i,i->)
-            else if (question.einsumString === 'i,i->') {
-                testCases.push(this.generateDotProductTestCase(5));
-                testCases.push(this.generateDotProductTestCase(7));
-            }
-            // For outer product (i,j->ij)
-            else if (question.einsumString === 'i,j->ij') {
-                testCases.push(this.generateOuterProductTestCase(3, 4));
-                testCases.push(this.generateOuterProductTestCase(4, 3));
-            }
-            // For element-wise multiplication (ij,ij->ij)
-            else if (question.einsumString === 'ij,ij->ij') {
-                testCases.push(this.generateElementWiseMultiplicationTestCase(3, 4));
-                testCases.push(this.generateElementWiseMultiplicationTestCase(4, 3));
-            }
-            // For batch matrix multiplication (bij,bjk->bik)
-            else if (question.einsumString === 'bij,bjk->bik') {
-                testCases.push(this.generateBatchMatrixMultiplicationTestCase(3, 4, 3, 2));
-                testCases.push(this.generateBatchMatrixMultiplicationTestCase(2, 3, 2, 4));
-            }
-        } else {
-            // Single input tensor operations
+    //         // For matrix multiplication (ik,kj->ij)
+    //         if (question.einsumString === 'ik,kj->ij') {
+    //             // Add a test case with different dimensions
+    //             testCases.push(this.generateMatrixMultiplicationTestCase(3, 4, 2));
+    //             testCases.push(this.generateMatrixMultiplicationTestCase(4, 2, 5));
+    //         } 
+    //         // For dot product (i,i->)
+    //         else if (question.einsumString === 'i,i->') {
+    //             testCases.push(this.generateDotProductTestCase(5));
+    //             testCases.push(this.generateDotProductTestCase(7));
+    //         }
+    //         // For outer product (i,j->ij)
+    //         else if (question.einsumString === 'i,j->ij') {
+    //             testCases.push(this.generateOuterProductTestCase(3, 4));
+    //             testCases.push(this.generateOuterProductTestCase(4, 3));
+    //         }
+    //         // For element-wise multiplication (ij,ij->ij)
+    //         else if (question.einsumString === 'ij,ij->ij') {
+    //             testCases.push(this.generateElementWiseMultiplicationTestCase(3, 4));
+    //             testCases.push(this.generateElementWiseMultiplicationTestCase(4, 3));
+    //         }
+    //         // For batch matrix multiplication (bij,bjk->bik)
+    //         else if (question.einsumString === 'bij,bjk->bik') {
+    //             testCases.push(this.generateBatchMatrixMultiplicationTestCase(3, 4, 3, 2));
+    //             testCases.push(this.generateBatchMatrixMultiplicationTestCase(2, 3, 2, 4));
+    //         }
+    //     } else {
+    //         // Single input tensor operations
             
-            // For transpose (ij->ji)
-            if (question.einsumString === 'ij->ji') {
-                testCases.push(this.generateTransposeTestCase(4, 3));
-                testCases.push(this.generateTransposeTestCase(5, 2));
-            }
-            // For diagonal extraction (ii->i)
-            else if (question.einsumString === 'ii->i') {
-                testCases.push(this.generateDiagonalTestCase(5));
-                testCases.push(this.generateDiagonalTestCase(6));
-            }
-            // For row sum (ij->i)
-            else if (question.einsumString === 'ij->i') {
-                testCases.push(this.generateRowSumTestCase(4, 3));
-                testCases.push(this.generateRowSumTestCase(3, 5));
-            }
-        }
+    //         // For transpose (ij->ji)
+    //         if (question.einsumString === 'ij->ji') {
+    //             testCases.push(this.generateTransposeTestCase(4, 3));
+    //             testCases.push(this.generateTransposeTestCase(5, 2));
+    //         }
+    //         // For diagonal extraction (ii->i)
+    //         else if (question.einsumString === 'ii->i') {
+    //             testCases.push(this.generateDiagonalTestCase(5));
+    //             testCases.push(this.generateDiagonalTestCase(6));
+    //         }
+    //         // For row sum (ij->i)
+    //         else if (question.einsumString === 'ij->i') {
+    //             testCases.push(this.generateRowSumTestCase(4, 3));
+    //             testCases.push(this.generateRowSumTestCase(3, 5));
+    //         }
+    //     }
         
-        return testCases;
-    }
+    //     return testCases;
+    // }
     
-    // Helper methods to generate specific test cases
+    // // Helper methods to generate specific test cases
     
-    generateMatrixMultiplicationTestCase(m, n, p) {
-        // Generate m x n and n x p matrices for matrix multiplication
-        const A = { 
-            shape: [m, n], 
-            data: Array(m).fill().map(() => Array(n).fill().map(() => Math.floor(Math.random() * 10))) 
-        };
+    // generateMatrixMultiplicationTestCase(m, n, p) {
+    //     // Generate m x n and n x p matrices for matrix multiplication
+    //     const A = { 
+    //         shape: [m, n], 
+    //         data: Array(m).fill().map(() => Array(n).fill().map(() => Math.floor(Math.random() * 10))) 
+    //     };
         
-        const B = { 
-            shape: [n, p], 
-            data: Array(n).fill().map(() => Array(p).fill().map(() => Math.floor(Math.random() * 10))) 
-        };
+    //     const B = { 
+    //         shape: [n, p], 
+    //         data: Array(n).fill().map(() => Array(p).fill().map(() => Math.floor(Math.random() * 10))) 
+    //     };
         
-        // Calculate expected output
-        const result = Array(m).fill().map(() => Array(p).fill(0));
-        for (let i = 0; i < m; i++) {
-            for (let j = 0; j < p; j++) {
-                for (let k = 0; k < n; k++) {
-                    result[i][j] += A.data[i][k] * B.data[k][j];
-                }
-            }
-        }
+    //     // Calculate expected output
+    //     const result = Array(m).fill().map(() => Array(p).fill(0));
+    //     for (let i = 0; i < m; i++) {
+    //         for (let j = 0; j < p; j++) {
+    //             for (let k = 0; k < n; k++) {
+    //                 result[i][j] += A.data[i][k] * B.data[k][j];
+    //             }
+    //         }
+    //     }
         
-        return {
-            inputTensors: [A, B],
-            expectedOutput: { shape: [m, p], data: result }
-        };
-    }
+    //     return {
+    //         inputTensors: [A, B],
+    //         expectedOutput: { shape: [m, p], data: result }
+    //     };
+    // }
     
-    generateDotProductTestCase(n) {
-        // Generate two vectors of length n for dot product
-        const v1 = { 
-            shape: [n], 
-            data: Array(n).fill().map(() => Math.floor(Math.random() * 10)) 
-        };
+    // generateDotProductTestCase(n) {
+    //     // Generate two vectors of length n for dot product
+    //     const v1 = { 
+    //         shape: [n], 
+    //         data: Array(n).fill().map(() => Math.floor(Math.random() * 10)) 
+    //     };
         
-        const v2 = { 
-            shape: [n], 
-            data: Array(n).fill().map(() => Math.floor(Math.random() * 10)) 
-        };
+    //     const v2 = { 
+    //         shape: [n], 
+    //         data: Array(n).fill().map(() => Math.floor(Math.random() * 10)) 
+    //     };
         
-        // Calculate expected output
-        let result = 0;
-        for (let i = 0; i < n; i++) {
-            result += v1.data[i] * v2.data[i];
-        }
+    //     // Calculate expected output
+    //     let result = 0;
+    //     for (let i = 0; i < n; i++) {
+    //         result += v1.data[i] * v2.data[i];
+    //     }
         
-        return {
-            inputTensors: [v1, v2],
-            expectedOutput: { shape: [], data: result }
-        };
-    }
+    //     return {
+    //         inputTensors: [v1, v2],
+    //         expectedOutput: { shape: [], data: result }
+    //     };
+    // }
     
-    generateOuterProductTestCase(m, n) {
-        // Generate vectors of length m and n for outer product
-        const v1 = { 
-            shape: [m], 
-            data: Array(m).fill().map(() => Math.floor(Math.random() * 10)) 
-        };
+    // generateOuterProductTestCase(m, n) {
+    //     // Generate vectors of length m and n for outer product
+    //     const v1 = { 
+    //         shape: [m], 
+    //         data: Array(m).fill().map(() => Math.floor(Math.random() * 10)) 
+    //     };
         
-        const v2 = { 
-            shape: [n], 
-            data: Array(n).fill().map(() => Math.floor(Math.random() * 10)) 
-        };
+    //     const v2 = { 
+    //         shape: [n], 
+    //         data: Array(n).fill().map(() => Math.floor(Math.random() * 10)) 
+    //     };
         
-        // Calculate expected output
-        const result = Array(m).fill().map(() => Array(n).fill(0));
-        for (let i = 0; i < m; i++) {
-            for (let j = 0; j < n; j++) {
-                result[i][j] = v1.data[i] * v2.data[j];
-            }
-        }
+    //     // Calculate expected output
+    //     const result = Array(m).fill().map(() => Array(n).fill(0));
+    //     for (let i = 0; i < m; i++) {
+    //         for (let j = 0; j < n; j++) {
+    //             result[i][j] = v1.data[i] * v2.data[j];
+    //         }
+    //     }
         
-        return {
-            inputTensors: [v1, v2],
-            expectedOutput: { shape: [m, n], data: result }
-        };
-    }
+    //     return {
+    //         inputTensors: [v1, v2],
+    //         expectedOutput: { shape: [m, n], data: result }
+    //     };
+    // }
     
-    generateElementWiseMultiplicationTestCase(m, n) {
-        // Generate two m x n matrices for element-wise multiplication
-        const A = { 
-            shape: [m, n], 
-            data: Array(m).fill().map(() => Array(n).fill().map(() => Math.floor(Math.random() * 10))) 
-        };
+    // generateElementWiseMultiplicationTestCase(m, n) {
+    //     // Generate two m x n matrices for element-wise multiplication
+    //     const A = { 
+    //         shape: [m, n], 
+    //         data: Array(m).fill().map(() => Array(n).fill().map(() => Math.floor(Math.random() * 10))) 
+    //     };
         
-        const B = { 
-            shape: [m, n], 
-            data: Array(m).fill().map(() => Array(n).fill().map(() => Math.floor(Math.random() * 10))) 
-        };
+    //     const B = { 
+    //         shape: [m, n], 
+    //         data: Array(m).fill().map(() => Array(n).fill().map(() => Math.floor(Math.random() * 10))) 
+    //     };
         
-        // Calculate expected output
-        const result = Array(m).fill().map(() => Array(n).fill(0));
-        for (let i = 0; i < m; i++) {
-            for (let j = 0; j < n; j++) {
-                result[i][j] = A.data[i][j] * B.data[i][j];
-            }
-        }
+    //     // Calculate expected output
+    //     const result = Array(m).fill().map(() => Array(n).fill(0));
+    //     for (let i = 0; i < m; i++) {
+    //         for (let j = 0; j < n; j++) {
+    //             result[i][j] = A.data[i][j] * B.data[i][j];
+    //         }
+    //     }
         
-        return {
-            inputTensors: [A, B],
-            expectedOutput: { shape: [m, n], data: result }
-        };
-    }
+    //     return {
+    //         inputTensors: [A, B],
+    //         expectedOutput: { shape: [m, n], data: result }
+    //     };
+    // }
     
-    generateBatchMatrixMultiplicationTestCase(b, m, n, p) {
-        // Generate batch of b matrices of size m x n and n x p
-        const batchA = {
-            shape: [b, m, n],
-            data: Array(b).fill().map(() => 
-                Array(m).fill().map(() => 
-                    Array(n).fill().map(() => Math.floor(Math.random() * 10))
-                )
-            )
-        };
+    // generateBatchMatrixMultiplicationTestCase(b, m, n, p) {
+    //     // Generate batch of b matrices of size m x n and n x p
+    //     const batchA = {
+    //         shape: [b, m, n],
+    //         data: Array(b).fill().map(() => 
+    //             Array(m).fill().map(() => 
+    //                 Array(n).fill().map(() => Math.floor(Math.random() * 10))
+    //             )
+    //         )
+    //     };
         
-        const batchB = {
-            shape: [b, n, p],
-            data: Array(b).fill().map(() => 
-                Array(n).fill().map(() => 
-                    Array(p).fill().map(() => Math.floor(Math.random() * 10))
-                )
-            )
-        };
+    //     const batchB = {
+    //         shape: [b, n, p],
+    //         data: Array(b).fill().map(() => 
+    //             Array(n).fill().map(() => 
+    //                 Array(p).fill().map(() => Math.floor(Math.random() * 10))
+    //             )
+    //         )
+    //     };
         
-        // Calculate expected output
-        const result = Array(b).fill().map(() => 
-            Array(m).fill().map(() => Array(p).fill(0))
-        );
+    //     // Calculate expected output
+    //     const result = Array(b).fill().map(() => 
+    //         Array(m).fill().map(() => Array(p).fill(0))
+    //     );
         
-        for (let batch = 0; batch < b; batch++) {
-            for (let i = 0; i < m; i++) {
-                for (let j = 0; j < p; j++) {
-                    for (let k = 0; k < n; k++) {
-                        result[batch][i][j] += batchA.data[batch][i][k] * batchB.data[batch][k][j];
-                    }
-                }
-            }
-        }
+    //     for (let batch = 0; batch < b; batch++) {
+    //         for (let i = 0; i < m; i++) {
+    //             for (let j = 0; j < p; j++) {
+    //                 for (let k = 0; k < n; k++) {
+    //                     result[batch][i][j] += batchA.data[batch][i][k] * batchB.data[batch][k][j];
+    //                 }
+    //             }
+    //         }
+    //     }
         
-        return {
-            inputTensors: [batchA, batchB],
-            expectedOutput: { shape: [b, m, p], data: result }
-        };
-    }
+    //     return {
+    //         inputTensors: [batchA, batchB],
+    //         expectedOutput: { shape: [b, m, p], data: result }
+    //     };
+    // }
     
-    generateTransposeTestCase(m, n) {
-        // Generate an m x n matrix for transpose
-        const A = { 
-            shape: [m, n], 
-            data: Array(m).fill().map(() => Array(n).fill().map(() => Math.floor(Math.random() * 10))) 
-        };
+    // generateTransposeTestCase(m, n) {
+    //     // Generate an m x n matrix for transpose
+    //     const A = { 
+    //         shape: [m, n], 
+    //         data: Array(m).fill().map(() => Array(n).fill().map(() => Math.floor(Math.random() * 10))) 
+    //     };
         
-        // Calculate expected output
-        const result = Array(n).fill().map(() => Array(m).fill(0));
-        for (let i = 0; i < m; i++) {
-            for (let j = 0; j < n; j++) {
-                result[j][i] = A.data[i][j];
-            }
-        }
+    //     // Calculate expected output
+    //     const result = Array(n).fill().map(() => Array(m).fill(0));
+    //     for (let i = 0; i < m; i++) {
+    //         for (let j = 0; j < n; j++) {
+    //             result[j][i] = A.data[i][j];
+    //         }
+    //     }
         
-        return {
-            inputTensors: [A],
-            expectedOutput: { shape: [n, m], data: result }
-        };
-    }
+    //     return {
+    //         inputTensors: [A],
+    //         expectedOutput: { shape: [n, m], data: result }
+    //     };
+    // }
     
-    generateDiagonalTestCase(n) {
-        // Generate an n x n matrix for diagonal extraction
-        const A = { 
-            shape: [n, n], 
-            data: Array(n).fill().map(() => Array(n).fill().map(() => Math.floor(Math.random() * 10))) 
-        };
+    // generateDiagonalTestCase(n) {
+    //     // Generate an n x n matrix for diagonal extraction
+    //     const A = { 
+    //         shape: [n, n], 
+    //         data: Array(n).fill().map(() => Array(n).fill().map(() => Math.floor(Math.random() * 10))) 
+    //     };
         
-        // Calculate expected output
-        const result = Array(n).fill(0);
-        for (let i = 0; i < n; i++) {
-            result[i] = A.data[i][i];
-        }
+    //     // Calculate expected output
+    //     const result = Array(n).fill(0);
+    //     for (let i = 0; i < n; i++) {
+    //         result[i] = A.data[i][i];
+    //     }
         
-        return {
-            inputTensors: [A],
-            expectedOutput: { shape: [n], data: result }
-        };
-    }
+    //     return {
+    //         inputTensors: [A],
+    //         expectedOutput: { shape: [n], data: result }
+    //     };
+    // }
     
-    generateRowSumTestCase(m, n) {
-        // Generate an m x n matrix for row sum
-        const A = { 
-            shape: [m, n], 
-            data: Array(m).fill().map(() => Array(n).fill().map(() => Math.floor(Math.random() * 10))) 
-        };
+    // generateRowSumTestCase(m, n) {
+    //     // Generate an m x n matrix for row sum
+    //     const A = { 
+    //         shape: [m, n], 
+    //         data: Array(m).fill().map(() => Array(n).fill().map(() => Math.floor(Math.random() * 10))) 
+    //     };
         
-        // Calculate expected output
-        const result = Array(m).fill(0);
-        for (let i = 0; i < m; i++) {
-            for (let j = 0; j < n; j++) {
-                result[i] += A.data[i][j];
-            }
-        }
+    //     // Calculate expected output
+    //     const result = Array(m).fill(0);
+    //     for (let i = 0; i < m; i++) {
+    //         for (let j = 0; j < n; j++) {
+    //             result[i] += A.data[i][j];
+    //         }
+    //     }
         
-        return {
-            inputTensors: [A],
-            expectedOutput: { shape: [m], data: result }
-        };
-    }
+    //     return {
+    //         inputTensors: [A],
+    //         expectedOutput: { shape: [m], data: result }
+    //     };
+    // }
     
     toggleHint() {
         this.hintText.classList.toggle('show');
